@@ -109,29 +109,51 @@ fi
 
 # === プロンプト構築 ===
 PROMPT="/no_think
-Given the git diff below, write a single-line commit message.
-Use Conventional Commits: type(scope): description
+You must reply with exactly ONE line in this format:
+type(scope): description
+
+Example outputs:
+feat(auth): ログインエンドポイントを追加
+fix(api): nullポインタエラーを修正
+refactor(scripts): CLI呼び出しをAPI呼び出しに変更
+
 Allowed types: feat fix docs style refactor perf test build ci chore revert
-Keep under 72 chars. Imperative mood. No period at end.
+Rules: under 72 chars, imperative mood, no period at end.
 ${LANG_INSTRUCTION}
-Reply with ONLY the commit message line. No explanation, no formatting.
+
+IMPORTANT: Your reply must start with one of the allowed types. No other text.
 
 \`\`\`diff
 ${DIFF_FOR_PROMPT}
 \`\`\`"
 
-# === Ollama でメッセージ生成 ===
+# === Ollama API でメッセージ生成 ===
 echo "🤖 Generating commit message with ${MODEL}..."
-COMMIT_MSG=$(ollama run "$MODEL" "$PROMPT" 2>/dev/null)
+API_RESPONSE=$(curl -s http://localhost:11434/api/generate \
+  -d "$(jq -n --arg model "$MODEL" --arg prompt "$PROMPT" \
+    '{model: $model, prompt: $prompt, stream: false}')")
 
-# クリーンアップ: thinkタグ・思考テキスト除去、Conventional Commit 行を抽出
+COMMIT_MSG=$(echo "$API_RESPONSE" | jq -r '.response // empty')
+
+# クリーンアップ: thinkタグ・思考テキスト除去
+RAW_MSG="$COMMIT_MSG"
 COMMIT_MSG=$(echo "$COMMIT_MSG" \
   | sed '/<think>/,/<\/think>/d' \
   | sed '/^Thinking/d' \
-  | grep -E '^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)' \
-  | head -1 \
   | sed 's/^["`'"'"']*//;s/["`'"'"']*$//' \
-  | sed 's/\.$//')
+  | sed '/^$/d')
+
+# Conventional Commit 行を抽出
+CC_LINE=$(echo "$COMMIT_MSG" | grep -E '^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)' | head -1)
+if [[ -n "$CC_LINE" ]]; then
+  COMMIT_MSG=$(echo "$CC_LINE" | sed 's/\.$//')
+else
+  # フォールバック: 先頭行を取得し chore: を付与
+  FIRST_LINE=$(echo "$COMMIT_MSG" | head -1 | sed 's/\.$//')
+  if [[ -n "$FIRST_LINE" ]]; then
+    COMMIT_MSG="chore: ${FIRST_LINE}"
+  fi
+fi
 
 if [[ -z "$COMMIT_MSG" ]]; then
   echo "Error: failed to generate commit message." >&2
