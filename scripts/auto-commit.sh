@@ -2,7 +2,8 @@
 set -euo pipefail
 
 # === デフォルト設定 ===
-MODEL="llama3.2:1b"
+MODEL=""
+DEFAULT_MODELS=("qwen3:1.7b" "llama3.2:1b")
 DRY_RUN=false
 LANG_CODE="ja"
 MAX_DIFF_CHARS=8000
@@ -44,6 +45,25 @@ if ! command -v ollama &>/dev/null; then
   exit 1
 fi
 
+# === モデル自動選択（--model 未指定時） ===
+if [[ -z "$MODEL" ]]; then
+  AVAILABLE_MODELS=$(ollama list 2>/dev/null | awk 'NR>1{print $1}')
+  for candidate in "${DEFAULT_MODELS[@]}"; do
+    if echo "$AVAILABLE_MODELS" | grep -q "^${candidate}$"; then
+      MODEL="$candidate"
+      break
+    fi
+  done
+  if [[ -z "$MODEL" ]]; then
+    echo "Error: 利用可能なモデルが見つかりません。" >&2
+    echo "以下のいずれかをダウンロードしてください:" >&2
+    for m in "${DEFAULT_MODELS[@]}"; do
+      echo "  ollama pull $m" >&2
+    done
+    exit 1
+  fi
+fi
+
 if ! git rev-parse --is-inside-work-tree &>/dev/null; then
   echo "Error: not inside a git repository." >&2
   exit 1
@@ -79,7 +99,8 @@ else
 fi
 
 # === プロンプト構築 ===
-PROMPT="Generate a Conventional Commits message for this diff.
+PROMPT="/no_think
+Generate a Conventional Commits message for this diff.
 Format: type(scope): description
 Types: feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert
 Rules: under 72 chars, imperative mood, no period, no markdown/quotes.
@@ -92,8 +113,10 @@ ${DIFF_FOR_PROMPT}"
 echo "🤖 Generating commit message with ${MODEL}..."
 COMMIT_MSG=$(ollama run "$MODEL" "$PROMPT" 2>/dev/null)
 
-# クリーンアップ: 引用符除去、空行以降の余計な出力をカット、先頭行のみ使用
+# クリーンアップ: thinkタグ除去、引用符除去、空行以降カット
 COMMIT_MSG=$(echo "$COMMIT_MSG" \
+  | sed '/<think>/,/<\/think>/d' \
+  | sed '/^Thinking/d' \
   | sed 's/^["`'"'"']*//;s/["`'"'"']*$//' \
   | awk '/^$/{exit} {print}' \
   | head -5 \
