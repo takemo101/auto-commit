@@ -128,13 +128,13 @@ ${DIFF_FOR_PROMPT}
 \`\`\`"
 
 # === Ollama モデルのプリロード ===
-# コールドスタート時にモデルをメモリにロードさせる
+# 空プロンプトでモデルをメモリにロードさせる（トークン消費なし）
 echo "🔄 Loading model ${MODEL}..."
 PRELOAD_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
   --max-time 120 \
   http://localhost:11434/api/generate \
   -d "$(jq -n --arg model "$MODEL" \
-    '{model: $model, prompt: "hi", stream: false}')" 2>/dev/null)
+    '{model: $model, stream: false}')" 2>/dev/null)
 
 if [[ "$PRELOAD_RESPONSE" != "200" ]]; then
   echo "Warning: モデルのプリロードに失敗しました (HTTP ${PRELOAD_RESPONSE})" >&2
