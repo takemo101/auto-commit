@@ -79,14 +79,32 @@ else
 fi
 
 # === プロンプト構築 ===
-PROMPT="You are a git commit message generator. Based on the following diff, generate a concise and descriptive conventional commit message.
+PROMPT="You are a git commit message generator. Based on the following diff, generate a commit message following the Conventional Commits specification (https://www.conventionalcommits.org/).
+
+Format: <type>(<scope>): <description>
+
+Types (choose the most appropriate one):
+- feat:     A new feature for the user
+- fix:      A bug fix
+- docs:     Documentation only changes
+- style:    Code style changes (formatting, semicolons, etc.) — no logic change
+- refactor: Code restructuring without changing external behavior
+- perf:     Performance improvements
+- test:     Adding or updating tests
+- build:    Changes to build system or dependencies (npm, gradle, etc.)
+- ci:       Changes to CI configuration (GitHub Actions, etc.)
+- chore:    Other changes that don't modify src or test files
+- revert:   Reverts a previous commit
+
+Scope: optional, indicates the area affected (e.g., api, auth, ui)
+Breaking changes: add ! after type/scope (e.g., feat!: or feat(api)!:)
 
 Rules:
-- Use conventional commit format: type(scope): description
-- Types: feat, fix, refactor, docs, style, test, chore, build, ci, perf
-- Keep the first line under 72 characters
+- First line (subject) must be under 72 characters
+- Use imperative mood in the description (e.g., \"add\" not \"added\")
+- Do not end the subject with a period
 - If needed, add a blank line then a brief body (2-3 lines max)
-- Output ONLY the commit message, nothing else. No markdown, no quotes, no explanation.
+- Output ONLY the commit message, nothing else. No markdown, no quotes, no explanation
 - ${LANG_INSTRUCTION}
 
 Diff:
