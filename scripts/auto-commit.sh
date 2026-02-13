@@ -31,7 +31,16 @@ done
 
 # === 前提チェック ===
 if ! command -v ollama &>/dev/null; then
-  echo "Error: ollama is not installed." >&2
+  echo "Error: ollama がインストールされていません。" >&2
+  echo "" >&2
+  echo "以下の方法でインストールしてください:" >&2
+  echo "" >&2
+  echo "  macOS:   brew install ollama" >&2
+  echo "  Linux:   curl -fsSL https://ollama.com/install.sh | sh" >&2
+  echo "  その他:  https://ollama.com/download" >&2
+  echo "" >&2
+  echo "インストール後、モデルをダウンロードしてください:" >&2
+  echo "  ollama pull llama3.2:1b" >&2
   exit 1
 fi
 
