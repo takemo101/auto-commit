@@ -1,6 +1,10 @@
 ---
 name: auto-commit
 description: Ollamaを使ってgitのステージング済み変更からコミットメッセージを自動生成し、コミットする。git commitを求められたときに使う。
+metadata:
+  author: takemo-chan
+  github: https://github.com/takemo101
+  repository: https://github.com/takemo101/auto-commit
 ---
 
 # Auto Commit
