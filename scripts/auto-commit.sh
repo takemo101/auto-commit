@@ -69,11 +69,20 @@ if ! git rev-parse --is-inside-work-tree &>/dev/null; then
   exit 1
 fi
 
-# === ステージング確認 ===
+# === ステージング確認（未ステージなら全てステージ） ===
 STAGED_DIFF=$(git diff --cached --stat)
 if [[ -z "$STAGED_DIFF" ]]; then
-  echo "Error: no staged changes. Run 'git add' first." >&2
-  exit 1
+  # ステージされていない変更があれば全てステージ
+  if [[ -n $(git status --porcelain) ]]; then
+    echo "📦 No staged changes. Staging all changes..."
+    git add -A
+    STAGED_DIFF=$(git diff --cached --stat)
+  fi
+  # それでも空なら終了
+  if [[ -z "$STAGED_DIFF" ]]; then
+    echo "Error: no changes to commit." >&2
+    exit 1
+  fi
 fi
 
 echo "📋 Staged changes:"
