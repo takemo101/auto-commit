@@ -3,7 +3,7 @@ set -euo pipefail
 
 # === デフォルト設定 ===
 MODEL=""
-DEFAULT_MODELS=("qwen3:1.7b" "llama3.2:1b")
+DEFAULT_MODELS=("llama3.2:1b" "qwen3:1.7b")
 DRY_RUN=false
 LANG_CODE="ja"
 MAX_DIFF_CHARS=8000
@@ -100,27 +100,29 @@ fi
 
 # === プロンプト構築 ===
 PROMPT="/no_think
-Generate a Conventional Commits message for this diff.
-Format: type(scope): description
-Types: feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert
-Rules: under 72 chars, imperative mood, no period, no markdown/quotes.
+Given the git diff below, write a single-line commit message.
+Use Conventional Commits: type(scope): description
+Allowed types: feat fix docs style refactor perf test build ci chore revert
+Keep under 72 chars. Imperative mood. No period at end.
 ${LANG_INSTRUCTION}
-Output ONLY the message.
+Reply with ONLY the commit message line. No explanation, no formatting.
 
-${DIFF_FOR_PROMPT}"
+\`\`\`diff
+${DIFF_FOR_PROMPT}
+\`\`\`"
 
 # === Ollama でメッセージ生成 ===
 echo "🤖 Generating commit message with ${MODEL}..."
 COMMIT_MSG=$(ollama run "$MODEL" "$PROMPT" 2>/dev/null)
 
-# クリーンアップ: thinkタグ除去、引用符除去、空行以降カット
+# クリーンアップ: thinkタグ・思考テキスト除去、Conventional Commit 行を抽出
 COMMIT_MSG=$(echo "$COMMIT_MSG" \
   | sed '/<think>/,/<\/think>/d' \
   | sed '/^Thinking/d' \
+  | grep -E '^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)' \
+  | head -1 \
   | sed 's/^["`'"'"']*//;s/["`'"'"']*$//' \
-  | awk '/^$/{exit} {print}' \
-  | head -5 \
-  | sed '/^$/d')
+  | sed 's/\.$//')
 
 if [[ -z "$COMMIT_MSG" ]]; then
   echo "Error: failed to generate commit message." >&2
