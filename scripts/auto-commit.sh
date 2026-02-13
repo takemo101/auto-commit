@@ -127,11 +127,42 @@ IMPORTANT: Your reply must start with one of the allowed types. No other text.
 ${DIFF_FOR_PROMPT}
 \`\`\`"
 
-# === Ollama API でメッセージ生成 ===
+# === Ollama モデルのプリロード ===
+# コールドスタート時にモデルをメモリにロードさせる
+echo "🔄 Loading model ${MODEL}..."
+PRELOAD_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
+  --max-time 120 \
+  http://localhost:11434/api/generate \
+  -d "$(jq -n --arg model "$MODEL" \
+    '{model: $model, prompt: "hi", stream: false}')" 2>/dev/null)
+
+if [[ "$PRELOAD_RESPONSE" != "200" ]]; then
+  echo "Warning: モデルのプリロードに失敗しました (HTTP ${PRELOAD_RESPONSE})" >&2
+  echo "Ollama が起動しているか確認してください: ollama serve" >&2
+fi
+
+# === Ollama API でメッセージ生成（リトライ付き） ===
 echo "🤖 Generating commit message with ${MODEL}..."
-API_RESPONSE=$(curl -s http://localhost:11434/api/generate \
-  -d "$(jq -n --arg model "$MODEL" --arg prompt "$PROMPT" \
-    '{model: $model, prompt: $prompt, stream: false}')")
+MAX_RETRIES=2
+RETRY=0
+API_RESPONSE=""
+
+while [[ $RETRY -le $MAX_RETRIES ]]; do
+  API_RESPONSE=$(curl -s --max-time 120 http://localhost:11434/api/generate \
+    -d "$(jq -n --arg model "$MODEL" --arg prompt "$PROMPT" \
+      '{model: $model, prompt: $prompt, stream: false}')" 2>/dev/null)
+
+  RESPONSE_TEXT=$(echo "$API_RESPONSE" | jq -r '.response // empty' 2>/dev/null)
+  if [[ -n "$RESPONSE_TEXT" ]]; then
+    break
+  fi
+
+  RETRY=$((RETRY + 1))
+  if [[ $RETRY -le $MAX_RETRIES ]]; then
+    echo "⏳ Retrying... (${RETRY}/${MAX_RETRIES})"
+    sleep 2
+  fi
+done
 
 COMMIT_MSG=$(echo "$API_RESPONSE" | jq -r '.response // empty')
 
