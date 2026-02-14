@@ -110,15 +110,15 @@ fi
 # === プロンプト構築 ===
 PROMPT="/no_think
 You must reply with exactly ONE line in this format:
-type(scope): description
+type: description
 
 Example outputs:
-feat(auth): ログインエンドポイントを追加
-fix(api): nullポインタエラーを修正
-refactor(scripts): CLI呼び出しをAPI呼び出しに変更
+feat: ログインエンドポイントを追加
+fix: nullポインタエラーを修正
+refactor: CLI呼び出しをAPI呼び出しに変更
 
 Allowed types: feat fix docs style refactor perf test build ci chore revert
-Rules: under 72 chars, imperative mood, no period at end.
+Rules: under 72 chars, imperative mood, no period at end, NO scope in parentheses.
 ${LANG_INSTRUCTION}
 
 IMPORTANT: Your reply must start with one of the allowed types. No other text.
@@ -176,6 +176,8 @@ COMMIT_MSG=$(echo "$COMMIT_MSG" \
 
 # Conventional Commit 行を抽出
 CC_LINE=$(echo "$COMMIT_MSG" | grep -E '^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)' | head -1)
+  # scope除去: type(scope): desc → type: desc
+  CC_LINE=$(echo "$CC_LINE" | sed 's/^\([a-z]*\)([^)]*)/\1/')
 if [[ -n "$CC_LINE" ]]; then
   COMMIT_MSG=$(echo "$CC_LINE" | sed 's/\.$//')
 else
